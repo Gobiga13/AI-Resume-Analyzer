@@ -1,117 +1,123 @@
 # AI Resume Analyzer
 
-An AI-powered Resume Analyzer that evaluates resumes and matches them with job descriptions using Natural Language Processing (NLP). The system extracts skills from uploaded resumes and compares them with a job dataset to provide compatibility scores and job match insights.
+AI Resume Analyzer is a web-based application that analyzes a candidate's resume and compares it with job descriptions to determine how well the resume matches a specific role. The system extracts skills from the uploaded resume and compares them with job requirements from a dataset to generate a compatibility score and recommendations.
+
+This project demonstrates the use of Python, Flask, and Natural Language Processing techniques to build an intelligent resume analysis system.
 
 ---
 
-## Features
+## Live Demo
 
-* Upload and analyze resumes
-* Extract skills automatically from resumes
-* Match resumes with job descriptions
-* Compatibility score based on job requirements
-* Job recommendations from dataset
-* Simple and responsive user interface
+You can try the application here:
+
+https://ai-resumeanalyzer-g.vercel.app/
+
+This live demo allows users to upload a resume and see how well it matches available job roles from the dataset.
+
+---
+
+## Key Features
+
+* Resume Upload and Analysis
+* Automatic Skill Extraction from Resume
+* Job Matching based on Skills
+* Compatibility Score Calculation
+* Dataset-driven Job Role Matching
+* Clean and Responsive Web Interface
+* AI-powered Resume Intelligence
 
 ---
 
 ## Technologies Used
 
-* Python
-* Flask
-* HTML5
-* CSS3
-* JavaScript
-* Natural Language Processing (NLP)
-* Pandas
-* Machine Learning techniques
+Frontend
+HTML5
+CSS3
+JavaScript
+
+Backend
+Python
+Flask
+
+Libraries & Tools
+Pandas
+Natural Language Processing (NLP)
+PDF / DOCX Resume Parsing
+
+Deployment
+Vercel (Frontend hosting)
 
 ---
 
-## Project Structure
+## Project Folder Structure
 
-```
 Mini Project/
-│
-├── app.py
-├── requirements.txt
-├── final_job_dataset.csv
-│
-├── templates/
-│   ├── index.html
-│   ├── result.html
-│   └── error.html
-│
-├── static/
-│   └── style.css
-│
-├── uploads/
-│
-├── resume_parser.py
-├── skill_extractor.py
-├── match_engine.py
-└── genai_helper.py
-```
+
+app.py
+requirements.txt
+final_job_dataset.csv
+
+templates/
+ index.html
+ result.html
+ error.html
+
+static/
+ style.css
+
+uploads/
+
+resume_parser.py
+skill_extractor.py
+match_engine.py
+genai_helper.py
 
 ---
 
-## Installation
+## Installation Guide
 
-1. Clone the repository
+Follow these steps to run the project locally.
 
-```
-git clone https://github.com/yourusername/AI-Resume-Analyzer.git
-```
+### 1. Clone the repository
 
-2. Navigate to the project folder
+git clone https://github.com/Gobiga13/AI-Resume-Analyzer.git
 
-```
+### 2. Navigate to the project directory
+
 cd AI-Resume-Analyzer
-```
 
-3. Create and activate virtual environment
+### 3. Create a virtual environment
 
-```
 python -m venv venv
-```
 
-Windows:
+### 4. Activate the virtual environment
 
-```
+Windows
+
 venv\Scripts\activate
-```
 
-4. Install required dependencies
+### 5. Install dependencies
 
-```
 pip install -r requirements.txt
-```
 
----
+### 6. Run the application
 
-## Running the Application
-
-Run the Flask application:
-
-```
 python app.py
-```
 
-Open your browser and visit:
+### 7. Open the application in browser
 
-```
 http://127.0.0.1:5000
-```
 
 ---
 
-## Dataset
+## Dataset Information
 
 The project uses a job dataset containing:
 
-* 30+ companies
-* 10 job roles
-* Skills and job descriptions
+30+ Companies
+10 Job Roles
+Skill Requirements
+Job Descriptions
 
 The dataset is used to match resumes with suitable job opportunities.
 
@@ -119,11 +125,11 @@ The dataset is used to match resumes with suitable job opportunities.
 
 ## Future Improvements
 
-* Advanced AI resume scoring
-* Resume improvement suggestions
-* Multiple resume format support
-* Job recommendation system
-* Cloud deployment
+Add AI-based resume improvement suggestions
+Add support for multiple resume formats
+Implement advanced machine learning matching models
+Add user login and profile management
+Deploy full backend API on cloud
 
 ---
 
@@ -131,8 +137,10 @@ The dataset is used to match resumes with suitable job opportunities.
 
 Gobiga
 
+
+
 ---
 
 ## License
 
-This project is for educational and learning purposes.
+This project is created for educational and learning purposes.
