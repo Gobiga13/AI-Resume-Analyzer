@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ResumeIQ — AI-Powered Resume Analyzer</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <style>
+    /* ── Dropdown ── */
+    .select-wrapper { position: relative; }
+    .select-wrapper .chevron {
+      position: absolute; right: 13px; top: 50%;
+      transform: translateY(-50%); pointer-events: none;
+      color: var(--slate-500); transition: transform var(--transition);
+    }
+    .select-wrapper.open .chevron { transform: translateY(-50%) rotate(180deg); }
+
+    .sel-input {
+      height: 46px; border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm); padding: 0 40px 0 14px;
+      font-family: var(--font); font-size: 14px;
+      color: var(--slate-900); background: var(--surface);
+      transition: all var(--transition); outline: none;
+      width: 100%; cursor: pointer; box-sizing: border-box;
+    }
+    .sel-input::placeholder { color: var(--slate-300); }
+    .sel-input:hover  { border-color: var(--slate-300); }
+    .sel-input.active { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-glow); }
+    .sel-input:disabled { background: var(--surface-2); color: var(--slate-400); cursor: not-allowed; }
+
+    .dd-list {
+      position: absolute; top: calc(100% + 5px); left: 0; right: 0;
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+      z-index: 500; max-height: 240px; overflow-y: auto;
+      display: none;
+    }
+    .dd-list.open { display: block; animation: ddIn .15s ease; }
+    @keyframes ddIn { from{opacity:0;transform:translateY(-5px)} to{opacity:1;transform:none} }
+    .dd-list::-webkit-scrollbar { width: 4px; }
+    .dd-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+    .dd-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; font-size: 13px; font-weight: 500;
+      color: var(--slate-700); cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: background .12s, color .12s;
+    }
+    .dd-item:last-child { border: none; }
+    .dd-item:hover, .dd-item.sel { background: var(--blue-pale); color: var(--blue); }
+    .dd-icon { width: 26px; height: 26px; border-radius: 6px; background: var(--surface-2); display: grid; place-items: center; font-size: 13px; flex-shrink: 0; }
+    .dd-item:hover .dd-icon, .dd-item.sel .dd-icon { background: rgba(37,99,235,.12); }
+    .dd-empty { padding: 16px; text-align: center; font-size: 13px; color: var(--slate-500); }
+
+    .sel-tag { display: none; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--blue); background: var(--blue-pale); border: 1px solid rgba(37,99,235,.2); border-radius: 99px; padding: 3px 10px; margin-top: 6px; width: fit-content; }
+    .sel-tag.show { display: inline-flex; }
+
+    /* ── Upload Modal ── */
+    .modal-bg {
+      display: none; position: fixed; inset: 0;
+      background: rgba(15,23,42,.45); backdrop-filter: blur(5px);
+      z-index: 1000; align-items: center; justify-content: center;
+    }
+    .modal-bg.show { display: flex; animation: bgIn .2s ease; }
+    @keyframes bgIn { from{opacity:0} to{opacity:1} }
+
+    .modal-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);
+      padding: 44px 40px; max-width: 400px; width: 90%; text-align: center;
+      animation: boxIn .3s cubic-bezier(.34,1.56,.64,1); position: relative; overflow: hidden;
+    }
+    @keyframes boxIn { from{opacity:0;transform:scale(.85)} to{opacity:1;transform:scale(1)} }
+    .modal-box::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--green),#34d399); }
+
+    .modal-ico { width:70px; height:70px; background:var(--green-pale); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 18px; font-size:32px; animation:icoIn .4s cubic-bezier(.34,1.56,.64,1) .1s both; }
+    @keyframes icoIn { from{transform:scale(0)} to{transform:scale(1)} }
+    .modal-title { font-size:18px; font-weight:800; color:var(--slate-900); margin-bottom:16px; }
+
+    .modal-file-row { background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 14px; display:flex; align-items:center; gap:12px; text-align:left; margin-bottom:16px; }
+    .modal-file-ico { width:36px; height:36px; border-radius:8px; display:grid; place-items:center; font-size:18px; flex-shrink:0; }
+    .modal-file-ico.pdf  { background:#fef2f2; }
+    .modal-file-ico.docx { background:#eff6ff; }
+    .modal-fname { font-size:13px; font-weight:600; color:var(--slate-900); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:210px; }
+    .modal-fsize { font-size:11px; color:var(--slate-500); font-family:var(--mono); margin-top:2px; }
+
+    .modal-ok { background:var(--green); color:white; border:none; border-radius:var(--radius-sm); font-family:var(--font); font-size:14px; font-weight:600; padding:0 28px; height:44px; cursor:pointer; box-shadow:0 4px 12px rgba(16,185,129,.3); transition:all var(--transition); }
+    .modal-ok:hover { background:#059669; transform:translateY(-1px); }
+
+    /* ── Toasts ── */
+    #toasts { position:fixed; bottom:22px; right:22px; z-index:9999; display:flex; flex-direction:column; gap:9px; pointer-events:none; }
+    .toast { display:flex; align-items:flex-start; gap:10px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); padding:12px 14px; box-shadow:var(--shadow-lg); min-width:270px; max-width:340px; pointer-events:all; position:relative; overflow:hidden; animation:tIn .28s cubic-bezier(.34,1.56,.64,1) forwards; }
+    .toast.out { animation:tOut .22s ease forwards; }
+    @keyframes tIn  { from{opacity:0;transform:translateX(30px) scale(.94)} to{opacity:1;transform:none} }
+    @keyframes tOut { from{opacity:1;max-height:100px;margin-bottom:0} to{opacity:0;transform:translateX(30px);max-height:0;padding:0;margin:0} }
+    .t-bar { position:absolute; bottom:0; left:0; height:3px; border-radius:0 0 var(--radius-md) var(--radius-md); animation:tBar linear forwards; }
+    @keyframes tBar { from{width:100%} to{width:0} }
+    .t-ico { width:28px; height:28px; border-radius:7px; display:grid; place-items:center; font-size:14px; flex-shrink:0; }
+    .t-body { flex:1; }
+    .t-title { font-size:13px; font-weight:700; color:var(--slate-900); margin-bottom:1px; }
+    .t-msg   { font-size:12px; color:var(--slate-500); line-height:1.45; }
+    .t-close { background:none; border:none; cursor:pointer; color:var(--slate-300); font-size:17px; padding:0; flex-shrink:0; transition:color .15s; }
+    .t-close:hover { color:var(--slate-700); }
+    .toast.s { border-left:3px solid var(--green); }  .toast.s .t-ico { background:var(--green-pale); }  .toast.s .t-bar { background:var(--green); }
+    .toast.i { border-left:3px solid var(--blue);  }  .toast.i .t-ico { background:var(--blue-pale);  }  .toast.i .t-bar { background:var(--blue);  }
+    .toast.w { border-left:3px solid var(--amber); }  .toast.w .t-ico { background:#fffbeb;           }  .toast.w .t-bar { background:var(--amber); }
+    .toast.e { border-left:3px solid var(--red);   }  .toast.e .t-ico { background:var(--red-pale);  }  .toast.e .t-bar { background:var(--red);   }
+  </style>
+</head>
+<body>
+
+<!-- Upload Success Modal -->
+<div class="modal-bg" id="uploadModal">
+  <div class="modal-box">
+    <div class="modal-ico">✅</div>
+    <div class="modal-title">Resume Uploaded Successfully!</div>
+    <div class="modal-file-row">
+      <div class="modal-file-ico" id="mIcon">📄</div>
+      <div>
+        <div class="modal-fname" id="mName">—</div>
+        <div class="modal-fsize" id="mSize">—</div>
+      </div>
+    </div>
+    <button class="modal-ok" onclick="closeModal()">Continue →</button>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toasts"></div>
+
+<!-- Navigation -->
+<nav class="nav">
+  <div class="container">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="logo-mark">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+        </div>
+        <span class="logo-text">Resume<span>IQ</span></span>
+      </a>
+      <div class="nav-badge">AI Powered</div>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-tag">AI Resume Intelligence Platform</div>
+    <h1>Match Your Resume to<br/><em>Any Job Description</em></h1>
+    <p>Select a company and role from our dataset, upload your resume, and get an AI-powered compatibility score instantly.</p>
+
+    <div class="stats-row">
+      <div class="stat-item"><span class="stat-num">30+</span><span class="stat-label">Companies</span></div>
+      <div class="stat-item"><span class="stat-num">10</span><span class="stat-label">Job Roles</span></div>
+      <div class="stat-item"><span class="stat-num">55</span><span class="stat-label">Skills Tracked</span></div>
+      <div class="stat-item"><span class="stat-num">94%</span><span class="stat-label">Accuracy</span></div>
+    </div>
+
+    <!-- Form Card -->
+    <div class="form-card fade-up">
+      <form id="mainForm" action="/analyze" method="POST" enctype="multipart/form-data">
+
+        <!-- These two hidden inputs are what Flask reads -->
+        <input type="hidden" name="company"   id="hCompany" />
+        <input type="hidden" name="job_title" id="hJob" />
+
+        <!-- STEP 1 -->
+        <p class="form-section-title">01 — Upload Resume</p>
+        <div class="drop-zone" id="dropZone">
+          <input type="file" name="resume" id="fileInput" accept=".pdf,.docx" />
+          <span class="drop-icon">
+            <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </span>
+          <div class="drop-title">Drop resume here or <span>browse files</span></div>
+          <div class="drop-meta">PDF · DOCX · Max 10 MB</div>
+        </div>
+
+        <!-- File chip shown after upload -->
+        <div id="fileChip" class="file-selected" style="display:none; justify-content:space-between; align-items:center;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span id="chipName" style="font-weight:600;"></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span id="chipSize" style="font-size:11px;color:var(--slate-400);font-family:var(--mono);"></span>
+            <button type="button" onclick="removeFile()" style="background:none;border:none;cursor:pointer;color:var(--slate-400);font-size:18px;line-height:1;" title="Remove file">×</button>
+          </div>
+        </div>
+
+        <!-- STEP 2 -->
+        <p class="form-section-title" style="margin-top:32px;">02 — Target Role</p>
+        <div class="form-grid">
+
+          <!-- Company Dropdown -->
+          <div class="form-group">
+            <label>Company Name</label>
+            <div class="select-wrapper" id="cWrap">
+              <input type="text" id="cInput" class="sel-input" placeholder="Click to select company…" readonly />
+              <svg class="chevron" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+              <div class="dd-list" id="cDrop"></div>
+            </div>
+            <div class="sel-tag" id="cTag">
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              <span id="cTagTxt"></span>
+            </div>
+          </div>
+
+          <!-- Job Title Dropdown -->
+          <div class="form-group">
+            <label>Job Title</label>
+            <div class="select-wrapper" id="jWrap">
+              <input type="text" id="jInput" class="sel-input" placeholder="Select company first…" readonly disabled />
+              <svg class="chevron" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+              <div class="dd-list" id="jDrop"></div>
+            </div>
+            <div class="sel-tag" id="jTag">
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              <span id="jTagTxt"></span>
+            </div>
+          </div>
+
+        </div>
+
+        <button type="submit" class="btn-analyze" id="submitBtn">
+          <span class="btn-text">Analyze Resume</span>
+          <span class="btn-arrow">→</span>
+        </button>
+
+      </form>
+    </div>
+
+    <div class="features-strip">
+      <div class="feature-item">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Data never stored
+      </div>
+      <div class="feature-item">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Results in under 3s
+      </div>
+      <div class="feature-item">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        ATS-aware matching
+      </div>
+      <div class="feature-item">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        2000+ HR teams
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-inner">
+      <p class="footer-copy">© 2025 ResumeIQ. Built for modern hiring teams.</p>
+      <div class="footer-links">
+        <a href="#">Privacy</a><a href="#">Terms</a><a href="#">Docs</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ════════════════════════════════════════════
+   DATASET — exact values from final_job_dataset.csv
+════════════════════════════════════════════ */
+const DS = {
+  "Accenture":                ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "Amazon":                   ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "Ashok Leyland":            ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "Bahwan CyberTek":          ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "Capgemini":                ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "Cognizant":                ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "Flipkart":                 ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "Freshworks":               ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "Google":                   ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "HCL Technologies":         ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "IBM":                      ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "Infosys":                  ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "L&T Technology Services":  ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "Microsoft":                ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "Mindtree":                 ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "Mphasis":                  ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "Oracle":                   ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "PayPal":                   ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "PhonePe":                  ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "Ramco Systems":            ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "Razorpay":                 ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "Sundaram Clayton Limited": ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "Swiggy":                   ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "TVS Motor Company":        ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "Tata Consultancy Services":["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "Tata Elxsi":               ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "Tech Mahindra":            ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "UST":                      ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "Wipro":                    ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"],
+  "Zoho Corporation":         ["AI/ML Engineer","Business Analyst","Cloud Engineer","Cybersecurity Analyst","Data Analyst","Data Scientist","DevOps Engineer","Full Stack Developer","QA Engineer","Software Engineer"]
+};
+
+const CICO = {"Google":"🔵","Amazon":"🟠","Microsoft":"🟢","IBM":"🔷","Oracle":"🔴","Flipkart":"🟡","Swiggy":"🟠","Razorpay":"🔵","PhonePe":"🟣","PayPal":"🔵","Freshworks":"🟢","Zoho Corporation":"🔴","Tata Consultancy Services":"🔵","Infosys":"🔷","Wipro":"⚫","HCL Technologies":"🔵","Cognizant":"🔵","Accenture":"🟣","Capgemini":"🔵","Tech Mahindra":"🔴","Mindtree":"🟢","Mphasis":"🔵","UST":"🟠","L&T Technology Services":"🔵","Tata Elxsi":"🔵","Ashok Leyland":"🟡","TVS Motor Company":"🔴","Sundaram Clayton Limited":"🟤","Ramco Systems":"🔵","Bahwan CyberTek":"🔵"};
+const JICO = {"Software Engineer":"💻","Data Analyst":"📊","Data Scientist":"🔬","Full Stack Developer":"🌐","DevOps Engineer":"⚙️","Cloud Engineer":"☁️","AI/ML Engineer":"🤖","Cybersecurity Analyst":"🔒","Business Analyst":"📋","QA Engineer":"✅"};
+
+/* ── State ── */
+let selC = '', selJ = '', fileOK = false;
+
+/* ════ TOAST ════ */
+function toast(type, title, msg, ms=4000) {
+  const ICO = {s:'✅',i:'ℹ️',w:'⚠️',e:'❌'};
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<div class="t-ico">${ICO[type]}</div><div class="t-body"><div class="t-title">${title}</div><div class="t-msg">${msg}</div></div><button class="t-close" onclick="killT(this.parentElement)">×</button><div class="t-bar" style="animation-duration:${ms}ms"></div>`;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => killT(el), ms);
+}
+function killT(el) {
+  if (!el || el.classList.contains('out')) return;
+  el.classList.add('out');
+  setTimeout(() => el.remove(), 240);
+}
+
+/* ════ DROPDOWN HELPERS ════ */
+function fillDD(listEl, items, icoMap, onPick) {
+  listEl.innerHTML = '';
+  if (!items || !items.length) { listEl.innerHTML = '<div class="dd-empty">No options</div>'; return; }
+  items.forEach(item => {
+    const d = document.createElement('div');
+    d.className = 'dd-item';
+    d.innerHTML = `<span class="dd-icon">${icoMap[item]||'🏢'}</span>${item}`;
+    d.onmousedown = e => { e.preventDefault(); onPick(item); };
+    listEl.appendChild(d);
+  });
+}
+function openDD(wrap, list, inp)  { list.classList.add('open');    wrap.classList.add('open');    inp.classList.add('active');    }
+function closeDD(wrap, list, inp) { list.classList.remove('open'); wrap.classList.remove('open'); inp.classList.remove('active'); }
+
+/* ════ COMPANY ════ */
+const cInput = document.getElementById('cInput');
+const cDrop  = document.getElementById('cDrop');
+const cWrap  = document.getElementById('cWrap');
+
+cInput.addEventListener('click', () => {
+  if (cDrop.classList.contains('open')) { closeDD(cWrap, cDrop, cInput); return; }
+  fillDD(cDrop, Object.keys(DS).sort(), CICO, pickC);
+  openDD(cWrap, cDrop, cInput);
+});
+
+function pickC(name) {
+  selC = name;
+  document.getElementById('hCompany').value = name;   // ← Flask reads this
+  cInput.value = name;
+  document.getElementById('cTagTxt').textContent = name;
+  document.getElementById('cTag').classList.add('show');
+  closeDD(cWrap, cDrop, cInput);
+
+  // Reset job
+  selJ = '';
+  document.getElementById('hJob').value = '';
+  const jI = document.getElementById('jInput');
+  jI.value = ''; jI.disabled = false;
+  jI.placeholder = `Choose role at ${name}…`;
+  document.getElementById('jTag').classList.remove('show');
+
+  toast('s', 'Company Selected ✓', `${DS[name].length} roles available at ${name} — now pick a job title.`);
+}
+
+/* ════ JOB TITLE ════ */
+const jInput = document.getElementById('jInput');
+const jDrop  = document.getElementById('jDrop');
+const jWrap  = document.getElementById('jWrap');
+
+jInput.addEventListener('click', () => {
+  if (jInput.disabled) { toast('w', 'Select Company First', 'Choose a company above before picking a role.'); return; }
+  if (jDrop.classList.contains('open')) { closeDD(jWrap, jDrop, jInput); return; }
+  fillDD(jDrop, DS[selC] || [], JICO, pickJ);   // Only jobs for selected company
+  openDD(jWrap, jDrop, jInput);
+});
+
+function pickJ(title) {
+  selJ = title;
+  document.getElementById('hJob').value = title;      // ← Flask reads this
+  jInput.value = title;
+  document.getElementById('jTagTxt').textContent = title;
+  document.getElementById('jTag').classList.add('show');
+  closeDD(jWrap, jDrop, jInput);
+  toast('i', 'Role Selected 🎯', `"${title}" at ${selC} — upload your resume to continue!`);
+}
+
+document.addEventListener('click', e => {
+  if (!cWrap.contains(e.target)) closeDD(cWrap, cDrop, cInput);
+  if (!jWrap.contains(e.target)) closeDD(jWrap, jDrop, jInput);
+});
+
+/* ════ FILE UPLOAD ════ */
+const dropZone  = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const fileChip  = document.getElementById('fileChip');
+
+function handleFile(file) {
+  if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['pdf','docx'].includes(ext)) {
+    toast('e', 'Wrong File Type', 'Only PDF and DOCX are accepted. Please upload the correct format.');
+    fileInput.value = ''; fileOK = false; return;
+  }
+  if (file.size > 10*1024*1024) {
+    toast('e', 'File Too Large', `File is ${(file.size/1024/1024).toFixed(1)} MB. Max allowed is 10 MB.`);
+    fileInput.value = ''; fileOK = false; return;
+  }
+
+  fileOK = true;
+  const sz = file.size > 1024*1024 ? `${(file.size/1024/1024).toFixed(1)} MB` : `${(file.size/1024).toFixed(0)} KB`;
+
+  // Inline chip
+  document.getElementById('chipName').textContent = file.name;
+  document.getElementById('chipSize').textContent = sz;
+  fileChip.style.display = 'flex';
+  dropZone.style.borderColor = 'var(--green)';
+  dropZone.style.background  = 'var(--green-pale)';
+
+  // Modal
+  document.getElementById('mName').textContent = file.name;
+  document.getElementById('mSize').textContent = `${sz}  ·  ${ext.toUpperCase()}  ·  Verified ✓`;
+  const ico = document.getElementById('mIcon');
+  ico.textContent = ext === 'pdf' ? '📕' : '📘';
+  ico.className   = `modal-file-ico ${ext}`;
+  document.getElementById('uploadModal').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('uploadModal').classList.remove('show');
+  toast('s', 'Resume Ready ✓', 'File uploaded and verified. Fill in the role details and click Analyze!');
+}
+
+function removeFile() {
+  fileInput.value = ''; fileOK = false;
+  fileChip.style.display = 'none';
+  dropZone.style.borderColor = '';
+  dropZone.style.background  = '';
+  toast('w', 'File Removed', 'Resume removed. Please upload again to continue.');
+}
+
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+
+['dragenter','dragover'].forEach(ev =>
+  dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.add('drag-over'); })
+);
+['dragleave','drop'].forEach(ev =>
+  dropZone.addEventListener(ev, e => {
+    e.preventDefault(); dropZone.classList.remove('drag-over');
+    if (ev === 'drop' && e.dataTransfer.files[0]) {
+      const dt = new DataTransfer(); dt.items.add(e.dataTransfer.files[0]);
+      fileInput.files = dt.files; handleFile(e.dataTransfer.files[0]);
+    }
+  })
+);
+
+/* ════ FORM SUBMIT ════ */
+document.getElementById('mainForm').addEventListener('submit', e => {
+  e.preventDefault();
+
+  if (!fileOK || !fileInput.files[0]) {
+    toast('e', 'No Resume ❌', 'Please upload your resume (PDF or DOCX) before analyzing.'); return;
+  }
+  if (!selC) {
+    toast('e', 'No Company ❌', 'Click the Company Name field and select a company from the list.'); return;
+  }
+  if (!selJ) {
+    toast('e', 'No Job Title ❌', 'Click the Job Title field and select a role for the chosen company.'); return;
+  }
+
+  // Confirm hidden inputs are set (safety check)
+  document.getElementById('hCompany').value = selC;
+  document.getElementById('hJob').value     = selJ;
+
+  const btn = document.getElementById('submitBtn');
+  toast('i', 'Analyzing…', `Matching your resume against ${selC} — ${selJ}`);
+  btn.classList.add('loading'); btn.disabled = true;
+
+  setTimeout(() => e.target.submit(), 700);
+});
+
+/* ════ WELCOME ════ */
+window.addEventListener('load', () => {
+  setTimeout(() => toast('i', 'Welcome to ResumeIQ 👋',
+    'Step 1: Upload resume &nbsp;·&nbsp; Step 2: Pick company &amp; role &nbsp;·&nbsp; Step 3: Get your score!'), 900);
+});
+</script>
+</body>
+</html>

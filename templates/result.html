@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ResumeIQ — Analysis Results</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+
+  <nav class="nav">
+    <div class="container">
+      <div class="nav-inner">
+        <a href="/" class="nav-logo">
+          <div class="logo-mark">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
+          </div>
+          <span class="logo-text">Resume<span>IQ</span></span>
+        </a>
+        <div class="nav-badge">Analysis Complete</div>
+      </div>
+    </div>
+  </nav>
+
+  <section class="result-hero">
+    <div class="container">
+
+      <!-- Header Row -->
+      <div class="result-hero-top">
+        <div class="result-meta">
+          <div class="result-title">Resume Analysis Report</div>
+          <div class="result-subtitle">
+            <span>{{ company }}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            <span>{{ job_title }}</span>
+          </div>
+        </div>
+        <a href="/" class="btn-back">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          New Analysis
+        </a>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="summary-row fade-up">
+        <div class="summary-card blue">
+          <div class="summary-card-label">Match Score</div>
+          <div class="summary-card-value">{{ score }}%</div>
+          <div class="summary-card-sub">Overall compatibility</div>
+        </div>
+        <div class="summary-card green">
+          <div class="summary-card-label">Matched Skills</div>
+          <div class="summary-card-value">{{ matched_skills | length }}</div>
+          <div class="summary-card-sub">Skills in common</div>
+        </div>
+        <div class="summary-card amber">
+          <div class="summary-card-label">Skills Gap</div>
+          <div class="summary-card-value">{{ missing_skills | length }}</div>
+          <div class="summary-card-sub">Skills to acquire</div>
+        </div>
+      </div>
+
+      <!-- Score Ring -->
+      <div class="score-row fade-up">
+        <div class="score-ring-wrap">
+          <svg class="score-ring" viewBox="0 0 160 160">
+            <circle class="score-ring-bg"   cx="80" cy="80" r="70"/>
+            <circle class="score-ring-fill" id="scoreRing" cx="80" cy="80" r="70"/>
+          </svg>
+          <div class="score-center">
+            <span class="score-num" id="scoreNum">0</span>
+            <span class="score-pct">/ 100</span>
+          </div>
+        </div>
+
+        <div class="score-info">
+          <div class="score-verdict" id="scoreVerdict"></div>
+          <div class="score-label"   id="scoreLabel"></div>
+          <div class="score-desc"    id="scoreDesc"></div>
+
+          <div class="progress-section">
+            <div class="progress-item">
+              <div class="progress-label-row"><span>Technical Skills</span><span id="techPct">—</span></div>
+              <div class="progress-track"><div class="progress-fill blue"  id="techBar"></div></div>
+            </div>
+            <div class="progress-item">
+              <div class="progress-label-row"><span>Keyword Coverage</span><span id="kwPct">—</span></div>
+              <div class="progress-track"><div class="progress-fill green" id="kwBar"></div></div>
+            </div>
+            <div class="progress-item">
+              <div class="progress-label-row"><span>ATS Compatibility</span><span id="atsPct">—</span></div>
+              <div class="progress-track"><div class="progress-fill amber" id="atsBar"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Skills Comparison -->
+      <!--
+        IMPORTANT: matched_skills from app.py is a list of LOWERCASE strings.
+        So we compare skill.lower() against matched_skills for correct highlighting.
+      -->
+      <div class="skills-grid fade-up">
+
+        <div class="skills-card">
+          <div class="skills-card-header">
+            <div class="skills-card-title">
+              <div class="skills-card-icon blue">📄</div>
+              Your Resume Skills
+            </div>
+            <span class="skills-count">{{ resume_skills | length }} skill{{ 's' if resume_skills|length != 1 }}</span>
+          </div>
+          <div class="skill-tags">
+            {% if resume_skills %}
+              {% for skill in resume_skills %}
+                {% if skill | lower in matched_skills %}
+                  <span class="skill-tag matched">✓ {{ skill }}</span>
+                {% else %}
+                  <span class="skill-tag resume">{{ skill }}</span>
+                {% endif %}
+              {% endfor %}
+            {% else %}
+              <p style="font-size:13px;color:var(--slate-500);margin:0;">
+                No recognisable skills found in your resume.<br/>
+                Make sure your PDF/DOCX is not a scanned image.
+              </p>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="skills-card">
+          <div class="skills-card-header">
+            <div class="skills-card-title">
+              <div class="skills-card-icon green">💼</div>
+              Job Description Skills
+            </div>
+            <span class="skills-count">{{ job_skills | length }} required</span>
+          </div>
+          <div class="skill-tags">
+            {% if job_skills %}
+              {% for skill in job_skills %}
+                {% if skill | lower in matched_skills %}
+                  <span class="skill-tag matched">✓ {{ skill }}</span>
+                {% else %}
+                  <span class="skill-tag missing">✗ {{ skill }}</span>
+                {% endif %}
+              {% endfor %}
+            {% else %}
+              <p style="font-size:13px;color:var(--slate-500);margin:0;">No job skills loaded.</p>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Missing Skills Warning Card -->
+      {% if missing_skills %}
+      <div style="background:#fffbeb;border:1px solid rgba(245,158,11,.25);border-radius:var(--radius-lg);padding:24px 28px;margin-bottom:20px;display:flex;gap:16px;align-items:flex-start;">
+        <div style="width:42px;height:42px;background:var(--amber);border-radius:11px;display:grid;place-items:center;font-size:20px;flex-shrink:0;">⚠️</div>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:#92400e;margin-bottom:10px;">
+            {{ missing_skills | length }} Skill{{ 's' if missing_skills|length != 1 }} Missing from Your Resume
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:7px;">
+            {% for skill in missing_skills %}
+              <span style="font-size:12px;font-weight:600;font-family:var(--mono);background:white;color:#b45309;border:1px solid rgba(245,158,11,.4);border-radius:6px;padding:4px 11px;">
+                + {{ skill }}
+              </span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Recommendation -->
+      <div class="reco-card fade-up">
+        <div class="reco-icon">💡</div>
+        <div class="reco-content">
+          <div class="reco-title">Personalised Recommendation</div>
+          <div class="reco-text" id="recoText">Loading…</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-inner">
+        <p class="footer-copy">© 2025 ResumeIQ. Built for modern hiring teams.</p>
+        <div class="footer-links">
+          <a href="#">Privacy</a><a href="#">Terms</a><a href="#">Docs</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const SCORE   = {{ score | int }};
+    const MISSING = {{ missing_skills | tojson }};
+    const COMPANY = {{ company    | tojson }};
+    const ROLE    = {{ job_title  | tojson }};
+
+    const C   = 2 * Math.PI * 70;
+    const ring = document.getElementById('scoreRing');
+    const num  = document.getElementById('scoreNum');
+
+    function ringColor(s) {
+      ring.style.stroke = s>=80 ? 'var(--green)' : s>=60 ? 'var(--blue)' : s>=40 ? 'var(--amber)' : 'var(--red)';
+    }
+
+    function verdict(s) {
+      const v = document.getElementById('scoreVerdict');
+      const l = document.getElementById('scoreLabel');
+      const d = document.getElementById('scoreDesc');
+      if (s >= 80) {
+        v.className='score-verdict excellent'; v.textContent='🟢 Excellent Match';
+        l.textContent='Top Candidate Profile';
+        d.textContent='Outstanding! Your resume is a strong fit for this role and well-optimised for ATS screening. You are among the top-tier applicants.';
+      } else if (s >= 60) {
+        v.className='score-verdict good'; v.textContent='🔵 Good Match';
+        l.textContent='Strong Candidate Profile';
+        d.textContent='Your resume covers the core requirements well. A few targeted skill additions and keyword tweaks could push you into the excellent range.';
+      } else if (s >= 40) {
+        v.className='score-verdict fair'; v.textContent='🟡 Fair Match';
+        l.textContent='Developing Candidate Profile';
+        d.textContent='You meet some requirements but have notable skill gaps. Focus on adding the missing skills and using the exact keywords from the job description.';
+      } else {
+        v.className='score-verdict poor'; v.textContent='🔴 Low Match';
+        l.textContent='Needs Improvement';
+        d.textContent='Limited overlap with this role. Consider upskilling in the missing areas and tailoring your resume specifically for this position before applying.';
+      }
+    }
+
+    function reco(s) {
+      const el = document.getElementById('recoText');
+      const top = MISSING.slice(0,3).map(sk=>`<strong>${sk}</strong>`).join(', ');
+      const hasMissing = MISSING.length > 0;
+      if (s >= 80) {
+        el.innerHTML = `Your profile is an excellent fit for <strong>${ROLE}</strong> at <strong>${COMPANY}</strong>. Focus on quantifiable achievements and a strong cover letter to finalise your application.`;
+      } else if (s >= 60) {
+        el.innerHTML = hasMissing
+          ? `Good match for <strong>${ROLE}</strong> at <strong>${COMPANY}</strong>. Add hands-on experience with ${top} to strengthen your profile and boost your ATS score.`
+          : `Good match for <strong>${ROLE}</strong> at <strong>${COMPANY}</strong>. Tailor your professional summary to mirror the job description for best results.`;
+      } else if (s >= 40) {
+        el.innerHTML = hasMissing
+          ? `Moderate match for <strong>${ROLE}</strong> at <strong>${COMPANY}</strong>. Priority skills to develop: ${top}. Restructure your resume to highlight relevant experience first.`
+          : `Moderate match. Restructure your resume to highlight the most relevant skills for <strong>${ROLE}</strong>.`;
+      } else {
+        el.innerHTML = hasMissing
+          ? `This role at <strong>${COMPANY}</strong> requires significant development. Start with ${top}. Online certifications and portfolio projects in these areas will improve your candidacy.`
+          : `Focus on tailoring your resume specifically for <strong>${ROLE}</strong> at <strong>${COMPANY}</strong>.`;
+      }
+    }
+
+    function countUp(el, target) {
+      let n=0; const step=Math.max(1,Math.ceil(target/55));
+      const t=setInterval(()=>{ n=Math.min(n+step,target); el.textContent=n; if(n>=target) clearInterval(t); },16);
+    }
+
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        ring.style.strokeDasharray  = C;
+        ring.style.strokeDashoffset = C * (1 - SCORE/100);
+        ringColor(SCORE); verdict(SCORE); reco(SCORE); countUp(num, SCORE);
+
+        const tech=Math.min(SCORE+8,100), kw=Math.max(SCORE-5,5), ats=Math.min(SCORE+3,100);
+        setTimeout(()=>{
+          document.getElementById('techBar').style.width = tech+'%'; document.getElementById('techPct').textContent=tech+'%';
+          document.getElementById('kwBar').style.width   = kw+'%';   document.getElementById('kwPct').textContent=kw+'%';
+          document.getElementById('atsBar').style.width  = ats+'%';  document.getElementById('atsPct').textContent=ats+'%';
+        }, 400);
+
+        document.querySelectorAll('.skill-tag').forEach((t,i)=>{ t.style.animationDelay=(i*40)+'ms'; });
+      }, 200);
+    });
+  </script>
+</body>
+</html>
